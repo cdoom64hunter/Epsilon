@@ -116,7 +116,7 @@ def main() -> int:
                     all_logs = svn_client.log_default(revision_from=p_rev + 1, revision_to=c_rev, changelist=True)
                     for log in all_logs:
                         commit_time = log.date.strftime(hook_commit_dateformat)
-                        commit_linecount = log.msg.count('\n') + 1
+                        commit_linecount = 0 if not log.msg else log.msg.count('\n') + 1
                         linestr = "line" if commit_linecount == 1 else "lines"
                         commit_header = commit_header_template.format(revision=log.revision, author=log.author,
                                                                       linestr=linestr,
@@ -130,10 +130,11 @@ def main() -> int:
                         commit_changes = commit_changes[0:-1]
 
                         commit_message = ""
-                        for m in log.msg.split("\n"):
-                            commit_message += " " * 4
-                            commit_message += m
-                            commit_message += "\n"
+                        if log.msg:
+                            for m in log.msg.split("\n"):
+                                commit_message += " " * 4
+                                commit_message += m
+                                commit_message += "\n"
 
                         new_commit_string = commit_template.format(header=commit_header, separator=commit_separator,
                                                                    changes=commit_changes, message=commit_message)
@@ -141,6 +142,7 @@ def main() -> int:
                         # This will block here until connection can be established
                         hook.send(content=new_commit_string)
                         logger.debug(new_commit_string + "\n")
+                        time.sleep(2)
 
                     with open(rev_file, 'w') as fd:
                         fd.write(f"{c_rev}")
@@ -158,10 +160,14 @@ def main() -> int:
         logger.info("Shutting down webhook...")
         hook.close()
 
-    with open(rev_file, 'w') as fd:
-        fd.write(f"{c_rev}")
-
-    return 0
+        # only save on graceful exit
+        with open(rev_file, 'w') as fd:
+            fd.write(f"{c_rev}")
+        return 0
+    except Exception:
+        logger.error(f"An unknown error occurred, shutting down server.")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return -1
 
 
 if __name__ == "__main__":
