@@ -145,7 +145,7 @@ def main() -> int:
                         hook.send(content=new_commit_string)
                         logger.debug(new_commit_string + "\n")
                         ls_rev = log.revision
-                        time.sleep(2)
+                        time.sleep(1)
 
                     with open(rev_file, 'w') as fd:
                         fd.write(f"{c_rev}")
