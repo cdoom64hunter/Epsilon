@@ -1,4 +1,4 @@
-# epsilon.py -- An SVN to Discord Webhook
+# epsilon.py -- An SVN to Discord Webhook Wrapper
 
 This is a small Python script that serves to send new SVN commit messages from the
 specified SVN server to the given Discord webhook.
@@ -11,7 +11,7 @@ specified SVN server to the given Discord webhook.
 ```
 usage: epsilon.py [-h] [-u USER] [-p PASSWORD] [-t POLL_TIME] [-n HOOK_NAME] [-a AVATAR] [-l LOGLEVEL] [-i INITIAL_REVISION] svn_url hook_url
 
-epsilon.py -- An SVN to Discord Webhook
+epsilon.py -- An SVN to Discord Webhook Wrapper
 
 positional arguments:
   svn_url               URL that points to the SVN repository
