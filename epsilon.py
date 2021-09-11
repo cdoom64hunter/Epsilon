@@ -21,6 +21,7 @@ commit_header_template = "r{revision} | {author} | {cdate} | {linecount} {linest
 commit_modeline_template = "{mode} | {filepath}"
 commit_template = "```\n{header}\n{separator}\nChanged paths:\n{changes}\n{separator}\nCommit message:\n{message}\n```"
 
+rev_file = "./.epsilon_last_revision"
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -78,7 +79,18 @@ def main() -> int:
     logger.info(f"Polling SVN at an interval of {args.poll_time} seconds")
 
     svn_startup_info = svn_client.info()
-    c_rev: int = args.initial_revision if args.initial_revision else svn_startup_info["commit_revision"]
+    c_rev: int
+    if args.initial_revision:
+        logger.info("Using specified initial revision...")
+        c_rev = args.initial_revision
+    elif os.path.exists(rev_file):
+        logger.info("Loading last know revision from file...")
+        with open(rev_file, 'r') as fd:
+            c_rev = int(fd.read())
+    else:
+        logger.info("Using HEAD as latest revision...")
+        c_rev = svn_startup_info["commit_revision"]
+
     p_rev: int = c_rev
     logger.info(f"Initial revision: {c_rev}")
 
@@ -130,6 +142,8 @@ def main() -> int:
                         hook.send(content=new_commit_string)
                         logger.debug(new_commit_string + "\n")
 
+                    with open(rev_file, 'w') as fd:
+                        fd.write(f"{c_rev}")
                     logger.info(f"New HEAD revision: r{c_rev}")
             except svn.exception.SvnException:
                 logger.error(f"Error contacting SVN server: '{args.svn_url}'")
@@ -143,6 +157,9 @@ def main() -> int:
     except KeyboardInterrupt:
         logger.info("Shutting down webhook...")
         hook.close()
+
+    with open(rev_file, 'w') as fd:
+        fd.write(f"{c_rev}")
 
     return 0
 
