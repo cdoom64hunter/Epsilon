@@ -92,6 +92,8 @@ def main() -> int:
         c_rev = svn_startup_info["commit_revision"]
 
     p_rev: int = c_rev
+    ls_rev: int = c_rev
+
     logger.info(f"Initial revision: {c_rev}")
 
     # Connect to Webhook
@@ -142,6 +144,7 @@ def main() -> int:
                         # This will block here until connection can be established
                         hook.send(content=new_commit_string)
                         logger.debug(new_commit_string + "\n")
+                        ls_rev = log.revision
                         time.sleep(2)
 
                     with open(rev_file, 'w') as fd:
@@ -159,16 +162,17 @@ def main() -> int:
     except KeyboardInterrupt:
         logger.info("Shutting down webhook...")
         hook.close()
-
-        # only save on graceful exit
-        with open(rev_file, 'w') as fd:
-            fd.write(f"{c_rev}")
-        return 0
+        exitcode = 0
     except Exception:
         logger.error(f"An unknown error occurred, shutting down server.")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return -1
+        exitcode = -1
 
+    # write last good revision
+    with open(rev_file, 'w') as fd:
+        fd.write(f"{ls_rev}")
+
+    return exitcode
 
 if __name__ == "__main__":
     exit(main())
