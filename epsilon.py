@@ -2,7 +2,7 @@
 # Copyright (c) 2021 Dino Bollinger
 # MIT License
 """
-epsilon.py -- An SVN to Discord Webhook
+epsilon.py -- An SVN to Discord Webhook Pipe
 """
 
 import argparse
@@ -41,8 +41,7 @@ def main() -> int:
     parser.add_argument('-l', '--loglevel', type=str, default="WARNING",
                         help='Log level for the log file. Default is "Warning"')
     parser.add_argument('-i', '--initial_revision', type=int, default=None,
-                        help='Initial revision number to start from. Can be used to print existing revisions to the '
-                             'channel. Default is the most recent revision at the time of connecting to the server.')
+                        help='Initial revision number to start from. Will print all commits up to most recent.')
     args = parser.parse_args()
 
     # Set up logger
