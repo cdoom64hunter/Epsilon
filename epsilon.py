@@ -21,6 +21,9 @@ commit_header_template = "r{revision} | {author} | {cdate} | {linecount} {linest
 commit_modeline_template = "{mode} | {filepath}"
 commit_template = "```\n{header}\n{separator}\nChanged paths:\n{changes}\n{separator}\nCommit message:\n{message}\n```"
 
+CHAR_THRESHOLD = 1900
+ABSOLUTE_LIMIT = 2000
+
 rev_file = "./.epsilon_last_revision"
 
 def main() -> int:
@@ -116,33 +119,67 @@ def main() -> int:
                     logger.info(f"Found {c_rev - p_rev} new commit(s) to send to webhook.")
                     all_logs = svn_client.log_default(revision_from=p_rev + 1, revision_to=c_rev, changelist=True)
                     for log in all_logs:
+                        total_msg_length = 50
                         commit_time = log.date.strftime(hook_commit_dateformat)
                         commit_linecount = 0 if not log.msg else log.msg.count('\n') + 1
                         linestr = "line" if commit_linecount == 1 else "lines"
                         commit_header = commit_header_template.format(revision=log.revision, author=log.author,
                                                                       linestr=linestr,
                                                                       cdate=commit_time, linecount=commit_linecount)
+                        total_msg_length += len(commit_header)
 
                         commit_separator = "-" * len(commit_header)
-                        commit_changes = ""
-                        for c in log.changelist:
-                            commit_changes += commit_modeline_template.format(mode=c[0], filepath=c[1])
-                            commit_changes += "\n"
-                        commit_changes = commit_changes[0:-1]
+                        total_msg_length += 2 * len(commit_separator)
 
                         commit_message = ""
                         if log.msg:
+                            i = 0
+                            message_linecount = len(log.msg.split("\n"))
                             for m in log.msg.split("\n"):
+                                if (total_msg_length + (len(m) + 5) > CHAR_THRESHOLD):
+                                    omit_msg = f"...({message_linecount - i} lines omitted)\n"
+                                    if (total_msg_length + len(omit_msg) > ABSOLUTE_LIMIT):
+                                        break
+                                    commit_message += omit_msg
+                                    total_msg_length += len(omit_msg)
+                                    break
+                                total_msg_length += (len(m) + 5)
                                 commit_message += " " * 4
                                 commit_message += m
                                 commit_message += "\n"
+                                i += 1
+
+
+                        commit_changes = ""
+                        message_linecount = len(log.changelist)
+                        if (total_msg_length < CHAR_THRESHOLD):
+                            i = 0
+                            for c in log.changelist:
+                                changeline = commit_modeline_template.format(mode=c[0], filepath=c[1])
+                                if (total_msg_length + len(changeline) > CHAR_THRESHOLD):
+                                    omit_msg = f"...({message_linecount - i} lines omitted)\n"
+                                    if (total_msg_length + len(omit_msg) > ABSOLUTE_LIMIT):
+                                        break
+                                    commit_changes += omit_msg
+                                    total_msg_length += len(omit_msg)
+                                    break
+                                total_msg_length += len(changeline)
+                                commit_changes += changeline
+                                commit_changes += "\n"
+                                i += 1
+                            commit_changes = commit_changes[0:-1]
+                        else:
+                            omit_msg = f"...({message_linecount - i} lines omitted)\n"
+                            if (total_msg_length + len(omit_msg) < ABSOLUTE_LIMIT):
+                                commit_changes += omit_msg
+                                total_msg_length += len(omit_msg)
 
                         new_commit_string = commit_template.format(header=commit_header, separator=commit_separator,
                                                                    changes=commit_changes, message=commit_message)
 
                         # This will block here until connection can be established
-                        hook.send(content=new_commit_string)
                         logger.debug(new_commit_string + "\n")
+                        hook.send(content=new_commit_string)
                         ls_rev = log.revision
                         time.sleep(1)
 
