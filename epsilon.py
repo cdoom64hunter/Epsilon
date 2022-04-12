@@ -19,7 +19,8 @@ import svn.exception
 hook_commit_dateformat = "%Y-%m-%d %H:%M:%S %z (%a, %d %b %Y)"
 commit_header_template = "r{revision} | {author} | {cdate} | {linecount} {linestr}"
 commit_modeline_template = "{mode} | {filepath}"
-commit_template = "```\n{header}\n{separator}\nChanged paths:\n{changes}\n{separator}\nCommit message:\n{message}\n```"
+commit_template = "\n{header}\n{separator}\nChanged paths:\n{changes}\n{separator}\nCommit message:\n{message}\n"
+commit_wrapper = "```{message}```"
 
 CHAR_THRESHOLD = 1900
 ABSOLUTE_LIMIT = 2000
@@ -174,12 +175,16 @@ def main() -> int:
                                 commit_changes += omit_msg
                                 total_msg_length += len(omit_msg)
 
-                        new_commit_string = commit_template.format(header=commit_header, separator=commit_separator,
+                        # build the full commit string
+                        raw_commit_string = commit_template.format(header=commit_header, separator=commit_separator,
                                                                    changes=commit_changes, message=commit_message)
 
+                        # sanitize the string, don't allow breaking out of code block
+                        wrapped_commit_string = commit_wrapper.format(message=raw_commit_string.replace("`", ""))
+
                         # This will block here until connection can be established
-                        logger.debug(new_commit_string + "\n")
-                        hook.send(content=new_commit_string)
+                        logger.debug(wrapped_commit_string + "\n")
+                        hook.send(content=wrapped_commit_string)
                         ls_rev = log.revision
                         time.sleep(1)
 
