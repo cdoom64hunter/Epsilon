@@ -25,8 +25,6 @@ commit_wrapper = "```{message}```"
 CHAR_THRESHOLD = 1900
 ABSOLUTE_LIMIT = 2000
 
-rev_file = "./.epsilon_last_revision"
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('svn_url', type=str, help='URL that points to the SVN repository')
@@ -46,6 +44,8 @@ def main() -> int:
                         help='Log level for the log file. Default is "Warning"')
     parser.add_argument('-i', '--initial_revision', type=int, default=None,
                         help='Initial revision number to start from. Will print all commits up to most recent.')
+    parser.add_argument('-r', '--rev_file', type=str, default="./.epsilon_last_revision",
+                        help='File to read last revision number from.')
     args = parser.parse_args()
 
     # Set up logger
@@ -86,9 +86,9 @@ def main() -> int:
     if args.initial_revision:
         logger.info("Using specified initial revision...")
         c_rev = args.initial_revision
-    elif os.path.exists(rev_file):
-        logger.info("Loading last know revision from file...")
-        with open(rev_file, 'r') as fd:
+    elif os.path.exists(args.rev_file):
+        logger.info("Loading last known revision from file...")
+        with open(args.rev_file, 'r') as fd:
             c_rev = int(fd.read())
     else:
         logger.info("Using HEAD as latest revision...")
@@ -188,7 +188,7 @@ def main() -> int:
                         ls_rev = log.revision
                         time.sleep(1)
 
-                    with open(rev_file, 'w') as fd:
+                    with open(args.rev_file, 'w') as fd:
                         fd.write(f"{c_rev}")
                     logger.info(f"New HEAD revision: r{c_rev}")
             except svn.exception.SvnException:
@@ -210,7 +210,7 @@ def main() -> int:
         exitcode = -1
 
     # write last good revision
-    with open(rev_file, 'w') as fd:
+    with open(args.rev_file, 'w') as fd:
         fd.write(f"{ls_rev}")
 
     return exitcode
